@@ -1,0 +1,148 @@
+### 变量定义
+@baseUrl = http://localhost:3000/api
+@contentType = application/json
+
+### ========================================
+### CREATE - 创建新的 Todo
+### ========================================
+
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "学习 NestJS",
+  "description": "完成 NestJS 官方文档的学习",
+  "completed": false
+}
+
+### ========================================
+### READ - 获取所有 Todos
+### ========================================
+
+GET {{baseUrl}}/todos HTTP/1.1
+
+### ========================================
+### READ - 获取单个 Todo (根据 ID)
+### ========================================
+
+GET {{baseUrl}}/todos/1 HTTP/1.1
+
+### ========================================
+### UPDATE - 更新 Todo (完整更新)
+### ========================================
+
+PUT {{baseUrl}}/todos/1 HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "学习 NestJS 框架",
+  "description": "完成 NestJS 官方文档的学习并实践项目",
+  "completed": true
+}
+
+### ========================================
+### UPDATE - 部分更新 Todo
+### ========================================
+
+PATCH {{baseUrl}}/todos/1 HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "completed": true
+}
+
+### ========================================
+### DELETE - 删除 Todo
+### ========================================
+
+DELETE {{baseUrl}}/todos/1 HTTP/1.1
+
+### ========================================
+### 批量创建示例
+### ========================================
+
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "完成项目文档",
+  "description": "编写 API 文档和使用说明",
+  "completed": false
+}
+
+###
+
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "代码审查",
+  "description": "审查团队成员提交的代码",
+  "completed": false
+}
+
+###
+
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "部署到生产环境",
+  "description": "将应用部署到生产服务器",
+  "completed": false
+}
+
+### ========================================
+### 测试场景：创建并更新
+### ========================================
+
+# @name createTodo
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "测试任务",
+  "description": "这是一个测试任务",
+  "completed": false
+}
+
+###
+
+# 使用上一个请求的响应
+@todoId = {{createTodo.response.body.id}}
+
+PATCH {{baseUrl}}/todos/{{todoId}} HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "completed": true
+}
+
+### ========================================
+### 错误处理测试
+### ========================================
+
+# 测试：获取不存在的 Todo
+GET {{baseUrl}}/todos/99999 HTTP/1.1
+
+###
+
+# 测试：创建无效的 Todo (缺少必填字段)
+POST {{baseUrl}}/todos HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "description": "缺少 title 字段"
+}
+
+###
+
+# 测试：更新不存在的 Todo
+PUT {{baseUrl}}/todos/99999 HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "不存在的任务",
+  "description": "这个 ID 不存在",
+  "completed": false
+}
