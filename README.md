@@ -385,6 +385,15 @@ const listResponseSchema = {
         items: todoSchema,
       },
       count: { type: "integer" },
+      pagination: {
+        type: "object",
+        properties: {
+          page: { type: "integer" },
+          limit: { type: "integer" },
+          total: { type: "integer" },
+          totalPages: { type: "integer" },
+        },
+      },
     },
   },
 };
@@ -406,6 +415,17 @@ export default async function todoRoutes(fastify, options) {
           type: "object",
           properties: {
             completed: { type: "string", enum: ["true", "false"] },
+            page: {
+              type: "integer",
+              minimum: 1,
+              default: 1,
+            },
+            limit: {
+              type: "integer",
+              minimum: 1,
+              maximum: 100,
+              default: 10,
+            },
           },
         },
         response: listResponseSchema, // 响应格式
@@ -489,6 +509,7 @@ export default async function todoRoutes(fastify, options) {
             description: { type: "string", maxLength: 1000 },
             completed: { type: "boolean" },
           },
+          minProperties: 1,
         },
         response: responseSchema,
       },
@@ -496,7 +517,36 @@ export default async function todoRoutes(fastify, options) {
     controller.updateTodo.bind(controller)
   );
 
-  // 5. DELETE /api/todos/:id - 删除 Todo
+  // 5. PATCH /api/todos/:id - 部分更新 Todo
+  fastify.patch(
+    "/todos/:id",
+    {
+      schema: {
+        description: "Partially update a todo",
+        tags: ["todos"],
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: {
+            id: { type: "integer", minimum: 1 },
+          },
+        },
+        body: {
+          type: "object",
+          properties: {
+            title: { type: "string", minLength: 1, maxLength: 200 },
+            description: { type: "string", maxLength: 1000 },
+            completed: { type: "boolean" },
+          },
+          minProperties: 1,
+        },
+        response: responseSchema,
+      },
+    },
+    controller.updateTodo.bind(controller)
+  );
+
+  // 6. DELETE /api/todos/:id - 删除 Todo
   fastify.delete(
     "/todos/:id",
     {
@@ -531,7 +581,7 @@ export default async function todoRoutes(fastify, options) {
     controller.deleteTodo.bind(controller)
   );
 
-  // 6. PATCH /api/todos/:id/toggle - 切换完成状态
+  // 7. PATCH /api/todos/:id/toggle - 切换完成状态
   fastify.patch(
     "/todos/:id/toggle",
     {
@@ -588,16 +638,17 @@ export class TodoController {
   async getAllTodos(request, reply) {
     try {
       // 1. 从查询参数获取过滤条件
-      const { completed } = request.query;
+      const { completed, page, limit } = request.query;
 
-      // 2. 调用 Service 层获取数据
-      const todos = await this.todoService.getAllTodos({ completed });
+      // 2. 调用 Service 层获取数据（包含分页信息）
+      const result = await this.todoService.getAllTodos({ completed, page, limit });
 
       // 3. 返回成功响应
       return reply.code(200).send({
         success: true,
-        data: todos,
-        count: todos.length,
+        data: result.data,
+        count: result.data.length,
+        pagination: result.pagination,
       });
     } catch (error) {
       // 4. 错误处理
@@ -684,8 +735,20 @@ export class TodoController {
         });
       }
 
-      // 2. 更新数据
-      const todo = await this.todoService.updateTodo(id, request.body);
+      // 2. 校验可更新字段
+      const updateData = request.body || {};
+      const hasUpdatableField = ["title", "description", "completed"].some(
+        (field) => updateData[field] !== undefined
+      );
+      if (!hasUpdatableField) {
+        return reply.code(400).send({
+          success: false,
+          error: "No fields provided for update",
+        });
+      }
+
+      // 3. 更新数据
+      const todo = await this.todoService.updateTodo(id, updateData);
 
       // 3. 返回更新后的数据
       return reply.code(200).send({
@@ -756,7 +819,7 @@ export class TodoController {
       // 2. 切换状态
       const todo = await this.todoService.toggleTodoComplete(id);
 
-      // 3. 返回更新后的数据
+      // 4. 返回更新后的数据
       return reply.code(200).send({
         success: true,
         data: todo,
@@ -811,25 +874,52 @@ export class TodoService {
    * 获取所有 Todos
    * @param {Object} filters - 过滤条件
    * @param {boolean} filters.completed - 是否完成
-   * @returns {Promise<Array>} Todos 列表
+   * @param {number} filters.page - 当前页码
+   * @param {number} filters.limit - 每页数量
+   * @returns {Promise<Object>} 含数据与分页信息
    */
   async getAllTodos(filters = {}) {
     // 1. 构建查询条件
     const where = {};
+    const { completed, page = 1, limit = 10 } = filters;
 
-    if (filters.completed !== undefined) {
+    if (completed !== undefined) {
       // 将字符串 'true'/'false' 转换为布尔值
       where.completed =
-        filters.completed === "true" || filters.completed === true;
+        completed === "true" || completed === true;
     }
 
-    // 2. 查询数据库
-    return await this.prisma.todo.findMany({
-      where, // 过滤条件
-      orderBy: {
-        createdAt: "desc", // 按创建时间降序排列
+    const parsedPage = parseInt(page, 10);
+    const parsedLimit = parseInt(limit, 10);
+    const normalizedPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const normalizedLimit =
+      Number.isNaN(parsedLimit) || parsedLimit < 1
+        ? 10
+        : Math.min(parsedLimit, 100);
+    const skip = (normalizedPage - 1) * normalizedLimit;
+
+    // 2. 并行查询列表与总数
+    const [todos, total] = await Promise.all([
+      this.prisma.todo.findMany({
+        where,
+        skip,
+        take: normalizedLimit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      this.prisma.todo.count({ where }),
+    ]);
+
+    return {
+      data: todos,
+      pagination: {
+        page: normalizedPage,
+        limit: normalizedLimit,
+        total,
+        totalPages: normalizedLimit === 0 ? 0 : Math.ceil(total / normalizedLimit),
       },
-    });
+    };
   }
 
   /**

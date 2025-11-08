@@ -13,21 +13,45 @@ export class TodoService {
    * 获取所有 Todos
    * @param {Object} filters - 过滤条件
    * @param {boolean} filters.completed - 是否完成
-   * @returns {Promise<Array>} Todos 列表
+   * @returns {Promise<Object>} 包含数据和分页信息
    */
   async getAllTodos(filters = {}) {
     const where = {};
-    
-    if (filters.completed !== undefined) {
-      where.completed = filters.completed === 'true' || filters.completed === true;
+    const { completed, page = 1, limit = 10 } = filters;
+
+    if (completed !== undefined) {
+      where.completed = completed === 'true' || completed === true;
     }
 
-    return await this.prisma.todo.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
+    const parsedPage = Number.parseInt(page, 10);
+    const parsedLimit = Number.parseInt(limit, 10);
+
+    const normalizedPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const normalizedLimit = Number.isNaN(parsedLimit) || parsedLimit < 1 ? 10 : Math.min(parsedLimit, 100);
+
+    const skip = (normalizedPage - 1) * normalizedLimit;
+
+    const [todos, total] = await Promise.all([
+      this.prisma.todo.findMany({
+        where,
+        skip,
+        take: normalizedLimit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.todo.count({ where }),
+    ]);
+
+    return {
+      data: todos,
+      pagination: {
+        page: normalizedPage,
+        limit: normalizedLimit,
+        total,
+        totalPages: normalizedLimit === 0 ? 0 : Math.ceil(total / normalizedLimit),
       },
-    });
+    };
   }
 
   /**

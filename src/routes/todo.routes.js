@@ -45,6 +45,16 @@ const listResponseSchema = {
         items: todoSchema,
       },
       count: { type: 'integer' },
+      pagination: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer' },
+          limit: { type: 'integer' },
+          total: { type: 'integer' },
+          totalPages: { type: 'integer' },
+        },
+        required: ['page', 'limit', 'total', 'totalPages'],
+      },
     },
   },
 };
@@ -61,6 +71,17 @@ export default async function todoRoutes(fastify, options) {
         type: 'object',
         properties: {
           completed: { type: 'string', enum: ['true', 'false'] },
+          page: {
+            type: 'integer',
+            minimum: 1,
+            default: 1,
+          },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 100,
+            default: 10,
+          },
         },
       },
       response: listResponseSchema,
@@ -128,6 +149,32 @@ export default async function todoRoutes(fastify, options) {
           description: { type: 'string', maxLength: 1000 },
           completed: { type: 'boolean' },
         },
+        minProperties: 1,
+      },
+      response: responseSchema,
+    },
+  }, controller.updateTodo.bind(controller));
+
+  // PATCH /api/todos/:id - 部分更新 Todo
+  fastify.patch('/todos/:id', {
+    schema: {
+      description: 'Partially update a todo',
+      tags: ['todos'],
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'integer', minimum: 1 },
+        },
+      },
+      body: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', minLength: 1, maxLength: 200 },
+          description: { type: 'string', maxLength: 1000 },
+          completed: { type: 'boolean' },
+        },
+        minProperties: 1,
       },
       response: responseSchema,
     },

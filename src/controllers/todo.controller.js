@@ -17,13 +17,14 @@ export class TodoController {
    */
   async getAllTodos(request, reply) {
     try {
-      const { completed } = request.query;
-      const todos = await this.todoService.getAllTodos({ completed });
-      
+      const { completed, page, limit } = request.query;
+      const result = await this.todoService.getAllTodos({ completed, page, limit });
+
       return reply.code(200).send({
         success: true,
-        data: todos,
-        count: todos.length,
+        data: result.data,
+        count: result.data.length,
+        pagination: result.pagination,
       });
     } catch (error) {
       request.log.error(error);
@@ -102,7 +103,18 @@ export class TodoController {
         });
       }
 
-      const todo = await this.todoService.updateTodo(id, request.body);
+      const updateData = request.body || {};
+      const hasUpdatableField = ['title', 'description', 'completed'].some(
+        (field) => updateData[field] !== undefined,
+      );
+      if (!hasUpdatableField) {
+        return reply.code(400).send({
+          success: false,
+          error: 'No fields provided for update',
+        });
+      }
+
+      const todo = await this.todoService.updateTodo(id, updateData);
 
       return reply.code(200).send({
         success: true,
