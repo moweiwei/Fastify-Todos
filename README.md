@@ -1,6 +1,6 @@
-# Fastify + Prisma 后端开发入门指南
+# Nestjs: Fastify + Prisma 后端开发入门指南
 
-> 专为前端转后端的初学者准备的详细教程
+> 专为前端转后端的初学者准备的 Nest 详细教程
 
 一个完整的、生产就绪的 Todos REST API 项目模板，使用 Fastify、Prisma ORM 和 SQLite 构建。
 
@@ -641,7 +641,11 @@ export class TodoController {
       const { completed, page, limit } = request.query;
 
       // 2. 调用 Service 层获取数据（包含分页信息）
-      const result = await this.todoService.getAllTodos({ completed, page, limit });
+      const result = await this.todoService.getAllTodos({
+        completed,
+        page,
+        limit,
+      });
 
       // 3. 返回成功响应
       return reply.code(200).send({
@@ -885,13 +889,13 @@ export class TodoService {
 
     if (completed !== undefined) {
       // 将字符串 'true'/'false' 转换为布尔值
-      where.completed =
-        completed === "true" || completed === true;
+      where.completed = completed === "true" || completed === true;
     }
 
     const parsedPage = parseInt(page, 10);
     const parsedLimit = parseInt(limit, 10);
-    const normalizedPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const normalizedPage =
+      Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
     const normalizedLimit =
       Number.isNaN(parsedLimit) || parsedLimit < 1
         ? 10
@@ -917,7 +921,8 @@ export class TodoService {
         page: normalizedPage,
         limit: normalizedLimit,
         total,
-        totalPages: normalizedLimit === 0 ? 0 : Math.ceil(total / normalizedLimit),
+        totalPages:
+          normalizedLimit === 0 ? 0 : Math.ceil(total / normalizedLimit),
       },
     };
   }
