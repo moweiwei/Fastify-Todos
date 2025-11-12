@@ -4,6 +4,52 @@
 
 一个完整的、生产就绪的 Todos REST API 项目模板，使用 Fastify、Prisma ORM 和 SQLite 构建。
 
+## 🚀 快速开始
+
+### 1. 安装依赖
+
+```bash
+npm install
+```
+
+### 2. 配置环境变量
+
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑 .env 文件，设置 JWT 密钥
+# 生产环境请使用强随机密钥！
+```
+
+### 3. 初始化数据库
+
+```bash
+# 运行数据库迁移
+npm run prisma:migrate
+
+# 可选：打开 Prisma Studio 查看数据库
+npm run prisma:studio
+```
+
+### 4. 启动开发服务器
+
+```bash
+npm run dev
+```
+
+服务器将在 `http://localhost:3000` 启动
+
+### 5. 访问 API 文档
+
+打开浏览器访问：`http://localhost:3000/documentation`
+
+### 6. 测试 API
+
+使用提供的 `test-auth.http` 文件测试认证功能，或使用 Swagger 文档在线测试。
+
+---
+
 ## ✨ 特性
 
 - ✅ **完整的 CRUD 操作** - 创建、读取、更新、删除 Todos
@@ -73,6 +119,346 @@ DELETE / api / todos / 1; // 删除 todo（类似删除按钮）
 - **Routes** = React Router 的路由配置
 - **Controller** = React 组件中的事件处理函数
 - **Service** = Redux 的 actions 或自定义 hooks
+
+## JWT 认证系统
+
+### 认证架构设计
+
+本项目采用企业级 JWT（JSON Web Token）双 Token 认证机制，确保安全性和用户体验的平衡。
+
+#### 双 Token 机制
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     JWT 双 Token 认证流程                      │
+└─────────────────────────────────────────────────────────────┘
+
+1. 用户登录
+   ↓
+2. 服务器验证凭据
+   ↓
+3. 生成两个 Token:
+   • Access Token (短期有效，15分钟)
+   • Refresh Token (长期有效，7天)
+   ↓
+4. 客户端存储 Token
+   • Access Token → 内存/状态管理
+   • Refresh Token → HttpOnly Cookie 或安全存储
+   ↓
+5. 访问受保护资源
+   • 携带 Access Token
+   ↓
+6. Access Token 过期？
+   • 是 → 使用 Refresh Token 获取新的 Access Token
+   • 否 → 继续访问
+```
+
+#### 核心特性
+
+| 特性              | 说明                                          | 优势                 |
+| ----------------- | --------------------------------------------- | -------------------- |
+| **双 Token 设计** | Access Token (15 分钟) + Refresh Token (7 天) | 平衡安全性和用户体验 |
+| **密码加密**      | bcrypt 哈希算法，salt rounds = 10             | 防止密码泄露         |
+| **用户隔离**      | 每个用户只能访问自己的数据                    | 数据安全和隐私保护   |
+| **Token 刷新**    | Refresh Token 存储在数据库                    | 支持主动撤销         |
+| **多设备管理**    | 支持单设备和全设备登出                        | 灵活的会话管理       |
+| **自动过期**      | Token 自动过期清理                            | 减少数据库负担       |
+
+### 数据库模型
+
+```prisma
+// 用户模型
+model User {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  username      String         @unique
+  password      String         // bcrypt 加密后的密码
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  todos         Todo[]         // 用户的所有 Todos
+  refreshTokens RefreshToken[] // 用户的所有刷新令牌
+}
+
+// 刷新令牌模型
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Todo 模型（关联用户）
+model Todo {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  userId      Int      // 外键：关联用户
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+### API 端点
+
+#### 认证相关接口
+
+| 方法  | 端点                        | 说明                           | 是否需要认证 |
+| ----- | --------------------------- | ------------------------------ | ------------ |
+| POST  | `/api/auth/register`        | 用户注册                       | ❌           |
+| POST  | `/api/auth/login`           | 用户登录                       | ❌           |
+| POST  | `/api/auth/refresh`         | 刷新 Access Token              | ❌           |
+| POST  | `/api/auth/logout`          | 登出（撤销当前 Refresh Token） | ❌           |
+| POST  | `/api/auth/logout-all`      | 登出所有设备                   | ✅           |
+| GET   | `/api/auth/me`              | 获取当前用户信息               | ✅           |
+| PATCH | `/api/auth/me`              | 更新用户信息                   | ✅           |
+| POST  | `/api/auth/change-password` | 修改密码                       | ✅           |
+
+#### Todo 相关接口（全部需要认证）
+
+| 方法   | 端点                    | 说明                     | 是否需要认证 |
+| ------ | ----------------------- | ------------------------ | ------------ |
+| GET    | `/api/todos`            | 获取当前用户的所有 Todos | ✅           |
+| GET    | `/api/todos/:id`        | 获取指定 Todo            | ✅           |
+| POST   | `/api/todos`            | 创建新 Todo              | ✅           |
+| PUT    | `/api/todos/:id`        | 更新 Todo                | ✅           |
+| PATCH  | `/api/todos/:id`        | 部分更新 Todo            | ✅           |
+| DELETE | `/api/todos/:id`        | 删除 Todo                | ✅           |
+| PATCH  | `/api/todos/:id/toggle` | 切换完成状态             | ✅           |
+
+### 使用示例
+
+#### 1. 用户注册
+
+```bash
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "username": "johndoe",
+  "password": "SecurePass123!"
+}
+
+# 响应
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "username": "johndoe"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "message": "User registered successfully"
+}
+```
+
+#### 2. 用户登录
+
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "login": "user@example.com",  # 可以是 email 或 username
+  "password": "SecurePass123!"
+}
+
+# 响应
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com",
+      "username": "johndoe"
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "message": "Login successful"
+}
+```
+
+#### 3. 访问受保护的资源
+
+```bash
+GET /api/todos
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# 响应
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "title": "学习 JWT 认证",
+      "description": "理解双 Token 机制",
+      "completed": false,
+      "userId": 1,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "count": 1,
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+#### 4. 刷新 Access Token
+
+```bash
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+# 响应
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "message": "Token refreshed successfully"
+}
+```
+
+#### 5. 修改密码
+
+```bash
+POST /api/auth/change-password
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "oldPassword": "SecurePass123!",
+  "newPassword": "NewSecurePass456!"
+}
+
+# 响应
+{
+  "success": true,
+  "message": "Password changed successfully. All sessions have been terminated."
+}
+```
+
+### 环境变量配置
+
+在 `.env` 文件中配置 JWT 密钥：
+
+```bash
+# 数据库配置
+DATABASE_URL="file:./dev.db"
+
+# 服务器配置
+PORT=3000
+NODE_ENV=development
+
+# JWT 配置（生产环境请使用强密钥）
+JWT_ACCESS_SECRET=your-super-secret-access-token-key-change-this-in-production
+JWT_REFRESH_SECRET=your-super-secret-refresh-token-key-change-this-in-production
+```
+
+**⚠️ 安全提示：**
+
+- 生产环境必须使用强随机密钥
+- 不要将密钥提交到版本控制系统
+- 定期轮换密钥
+- 使用环境变量管理敏感信息
+
+### 安全最佳实践
+
+#### 1. 密码安全
+
+```javascript
+// ✅ 使用 bcrypt 加密
+const hashedPassword = await bcrypt.hash(password, 10);
+
+// ❌ 不要明文存储密码
+const password = "123456"; // 危险！
+```
+
+#### 2. Token 存储
+
+```javascript
+// ✅ 前端存储建议
+// Access Token → 内存或状态管理（Redux/Zustand）
+// Refresh Token → HttpOnly Cookie（最安全）或 Secure Storage
+
+// ❌ 不要存储在 localStorage（容易受 XSS 攻击）
+localStorage.setItem("token", accessToken); // 不推荐
+```
+
+#### 3. HTTPS
+
+```javascript
+// ✅ 生产环境必须使用 HTTPS
+// Token 在传输过程中会被加密
+
+// ❌ HTTP 传输 Token 会被窃取
+```
+
+#### 4. Token 过期时间
+
+```javascript
+// ✅ 合理的过期时间
+Access Token: 15分钟 - 1小时
+Refresh Token: 7天 - 30天
+
+// ❌ 过长的过期时间增加安全风险
+Access Token: 永不过期 // 危险！
+```
+
+### 错误处理
+
+#### 常见错误码
+
+| 状态码 | 错误类型              | 说明                     |
+| ------ | --------------------- | ------------------------ |
+| 400    | Bad Request           | 请求参数错误             |
+| 401    | Unauthorized          | 未认证或 Token 无效      |
+| 403    | Forbidden             | 无权访问资源             |
+| 404    | Not Found             | 资源不存在               |
+| 409    | Conflict              | 资源冲突（如邮箱已存在） |
+| 500    | Internal Server Error | 服务器错误               |
+
+#### 错误响应示例
+
+```json
+// 401 未认证
+{
+  "success": false,
+  "error": "No Authorization was found in request.headers"
+}
+
+// 409 邮箱已存在
+{
+  "success": false,
+  "error": "Email already exists"
+}
+
+// 401 Token 过期
+{
+  "success": false,
+  "error": "Authorization token expired"
+}
+```
+
+---
 
 ---
 
@@ -1679,6 +2065,122 @@ fastify.get('/todos', {
   }
 }, controller.getAllTodos.bind(controller));
 ```
+
+### 9. JWT 认证是如何工作的？
+
+**问题：** JWT 认证的完整流程是什么？
+
+**答案：**
+
+```javascript
+// 1. 用户登录 - 生成 Token
+const accessToken = fastify.jwt.sign(
+  { id: user.id, email: user.email },
+  { expiresIn: '15m' }
+);
+
+// 2. 客户端携带 Token 访问
+// Header: Authorization: Bearer <token>
+
+// 3. 服务器验证 Token
+fastify.addHook('preHandler', async (request, reply) => {
+  try {
+    await request.jwtVerify();  // 自动解析并验证
+    // request.user 现在包含用户信息
+  } catch (err) {
+    reply.code(401).send({ error: 'Unauthorized' });
+  }
+});
+
+// 4. 访问受保护资源
+async getAllTodos(request, reply) {
+  const userId = request.user.id;  // 从 Token 中获取用户 ID
+  const todos = await this.todoService.getAllTodos(userId);
+  return reply.send({ data: todos });
+}
+```
+
+**双 Token 优势：**
+
+- Access Token 短期有效（15 分钟）：即使泄露，影响有限
+- Refresh Token 长期有效（7 天）：减少用户重复登录
+- Refresh Token 存储在数据库：可以主动撤销
+
+### 10. 如何实现用户数据隔离？
+
+**问题：** 如何确保用户只能访问自己的数据？
+
+**答案：**
+
+```javascript
+// Service 层 - 所有查询都添加 userId 过滤
+async getAllTodos(userId, filters = {}) {
+  return await this.prisma.todo.findMany({
+    where: {
+      userId: userId,  // 关键：只查询当前用户的数据
+      ...filters
+    }
+  });
+}
+
+// Controller 层 - 从 JWT Token 获取用户 ID
+async getAllTodos(request, reply) {
+  const userId = request.user.id;  // JWT 中间件自动注入
+  const todos = await this.todoService.getAllTodos(userId);
+  return reply.send({ data: todos });
+}
+```
+
+**安全保障：**
+
+1. JWT 中间件验证 Token 有效性
+2. 从 Token 中提取用户 ID（不可伪造）
+3. 所有数据库查询都添加 userId 过滤
+4. Prisma 关系确保数据完整性
+
+### 11. 密码如何安全存储？
+
+**问题：** 为什么不能明文存储密码？
+
+**答案：**
+
+```javascript
+// ❌ 错误做法：明文存储
+await prisma.user.create({
+  data: {
+    email: "user@example.com",
+    password: "123456", // 危险！数据库泄露会暴露所有密码
+  },
+});
+
+// ✅ 正确做法：bcrypt 加密
+import bcrypt from "bcrypt";
+
+// 注册时加密
+const hashedPassword = await bcrypt.hash(password, 10);
+await prisma.user.create({
+  data: {
+    email: "user@example.com",
+    password: hashedPassword, // 存储加密后的密码
+  },
+});
+
+// 登录时验证
+const user = await prisma.user.findUnique({ where: { email } });
+const isValid = await bcrypt.compare(password, user.password);
+if (!isValid) {
+  throw new Error("Invalid password");
+}
+```
+
+**bcrypt 优势：**
+
+- 单向加密：无法反向解密
+- 加盐（salt）：相同密码生成不同哈希值
+- 慢速算法：防止暴力破解
+- 行业标准：经过时间验证
+
+---
 
 ---
 

@@ -2,6 +2,8 @@
  * Todo Controller
  * 负责处理 HTTP 请求和响应
  * 调用 Service 层处理业务逻辑
+ * 
+ * 更新：支持用户认证 - 从 JWT Token 获取用户 ID
  */
 
 import { TodoService } from '../services/todo.service.js';
@@ -12,13 +14,15 @@ export class TodoController {
   }
 
   /**
-   * 获取所有 Todos
+   * 获取所有 Todos（用户隔离）
    * GET /api/todos
    */
   async getAllTodos(request, reply) {
     try {
+      const userId = request.user.id; // 从 JWT Token 获取用户 ID
       const { completed, page, limit } = request.query;
-      const result = await this.todoService.getAllTodos({ completed, page, limit });
+      
+      const result = await this.todoService.getAllTodos(userId, { completed, page, limit });
 
       return reply.code(200).send({
         success: true,
@@ -36,13 +40,15 @@ export class TodoController {
   }
 
   /**
-   * 根据 ID 获取单个 Todo
+   * 根据 ID 获取单个 Todo（用户隔离）
    * GET /api/todos/:id
    */
   async getTodoById(request, reply) {
     try {
+      const userId = request.user.id;
       const { id } = request.params;
-      const todo = await this.todoService.getTodoById(id);
+      
+      const todo = await this.todoService.getTodoById(id, userId);
 
       if (!todo) {
         return reply.code(404).send({
@@ -65,12 +71,13 @@ export class TodoController {
   }
 
   /**
-   * 创建新的 Todo
+   * 创建新的 Todo（关联当前用户）
    * POST /api/todos
    */
   async createTodo(request, reply) {
     try {
-      const todo = await this.todoService.createTodo(request.body);
+      const userId = request.user.id;
+      const todo = await this.todoService.createTodo(userId, request.body);
 
       return reply.code(201).send({
         success: true,
@@ -87,15 +94,16 @@ export class TodoController {
   }
 
   /**
-   * 更新 Todo
+   * 更新 Todo（用户隔离）
    * PUT /api/todos/:id
    */
   async updateTodo(request, reply) {
     try {
+      const userId = request.user.id;
       const { id } = request.params;
       
-      // 检查 Todo 是否存在
-      const existingTodo = await this.todoService.getTodoById(id);
+      // 检查 Todo 是否存在且属于当前用户
+      const existingTodo = await this.todoService.getTodoById(id, userId);
       if (!existingTodo) {
         return reply.code(404).send({
           success: false,
@@ -114,7 +122,7 @@ export class TodoController {
         });
       }
 
-      const todo = await this.todoService.updateTodo(id, updateData);
+      const todo = await this.todoService.updateTodo(id, userId, updateData);
 
       return reply.code(200).send({
         success: true,
@@ -131,15 +139,16 @@ export class TodoController {
   }
 
   /**
-   * 删除 Todo
+   * 删除 Todo（用户隔离）
    * DELETE /api/todos/:id
    */
   async deleteTodo(request, reply) {
     try {
+      const userId = request.user.id;
       const { id } = request.params;
 
-      // 检查 Todo 是否存在
-      const existingTodo = await this.todoService.getTodoById(id);
+      // 检查 Todo 是否存在且属于当前用户
+      const existingTodo = await this.todoService.getTodoById(id, userId);
       if (!existingTodo) {
         return reply.code(404).send({
           success: false,
@@ -147,7 +156,7 @@ export class TodoController {
         });
       }
 
-      await this.todoService.deleteTodo(id);
+      await this.todoService.deleteTodo(id, userId);
 
       return reply.code(200).send({
         success: true,
@@ -163,15 +172,16 @@ export class TodoController {
   }
 
   /**
-   * 切换 Todo 完成状态
+   * 切换 Todo 完成状态（用户隔离）
    * PATCH /api/todos/:id/toggle
    */
   async toggleTodoComplete(request, reply) {
     try {
+      const userId = request.user.id;
       const { id } = request.params;
 
-      // 检查 Todo 是否存在
-      const existingTodo = await this.todoService.getTodoById(id);
+      // 检查 Todo 是否存在且属于当前用户
+      const existingTodo = await this.todoService.getTodoById(id, userId);
       if (!existingTodo) {
         return reply.code(404).send({
           success: false,
@@ -179,7 +189,7 @@ export class TodoController {
         });
       }
 
-      const todo = await this.todoService.toggleTodoComplete(id);
+      const todo = await this.todoService.toggleTodoComplete(id, userId);
 
       return reply.code(200).send({
         success: true,

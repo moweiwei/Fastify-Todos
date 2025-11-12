@@ -10,14 +10,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User 模型 - 用户认证
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  username  String   @unique
+  password  String   // bcrypt 加密后的密码
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 关联关系
+  todos     Todo[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// RefreshToken 模型 - 刷新令牌管理
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  // 关联关系
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
 // Todo 模型
 model Todo {
   id          Int      @id @default(autoincrement())
   title       String
   description String?
   completed   Boolean  @default(false)
+  userId      Int      // 关联用户
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // 关联关系
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("todos")
 }

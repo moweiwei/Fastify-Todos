@@ -1,0 +1,172 @@
+### ========================================
+### JWT 认证 API 测试
+### ========================================
+
+@baseUrl = http://localhost:3000/api
+@contentType = application/json
+
+### 变量定义（测试后会自动更新）
+@accessToken = 
+@refreshToken = 
+@userId = 
+
+### ========================================
+### 1. 用户注册
+### ========================================
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "username": "moweiwei",
+  "password": "password123",
+  "name": "Test User"
+}
+
+### ========================================
+### 2. 用户登录
+### ========================================
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "emailOrUsername": "moweiwei",
+  "password": "password123"
+}
+
+### 保存 Token（手动复制登录响应中的 token）
+# @accessToken = <从登录响应复制 accessToken>
+# @refreshToken = <从登录响应复制 refreshToken>
+
+### ========================================
+### 3. 获取当前用户信息（需要认证）
+### ========================================
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+### ========================================
+### 4. 更新用户信息（需要认证）
+### ========================================
+PATCH {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Updated Test User"
+}
+
+### ========================================
+### 5. 刷新 Access Token
+### ========================================
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ========================================
+### 6. 修改密码（需要认证）
+### ========================================
+POST {{baseUrl}}/auth/change-password
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "oldPassword": "password123",
+  "newPassword": "newpassword123"
+}
+
+### ========================================
+### 7. 登出
+### ========================================
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ========================================
+### 8. 全部登出（需要认证）
+### ========================================
+POST {{baseUrl}}/auth/logout-all
+Authorization: Bearer {{accessToken}}
+
+### ========================================
+### Todo API 测试（需要认证）
+### ========================================
+
+### 9. 创建 Todo（需要认证）
+# @name createTodo
+POST {{baseUrl}}/todos
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "title": "学习 JWT 认证",
+  "description": "掌握企业级认证方案"
+}
+
+### 10. 获取所有 Todos（需要认证）
+GET {{baseUrl}}/todos
+Authorization: Bearer {{accessToken}}
+
+### 11. 获取所有 Todos（带分页和过滤）
+GET {{baseUrl}}/todos?completed=false&page=1&limit=10
+Authorization: Bearer {{accessToken}}
+
+### 12. 获取单个 Todo（需要认证）
+GET {{baseUrl}}/todos/1
+Authorization: Bearer {{accessToken}}
+
+### 13. 更新 Todo（需要认证）
+PUT {{baseUrl}}/todos/1
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "title": "学习 JWT 认证（已更新）",
+  "completed": true
+}
+
+### 14. 切换 Todo 完成状态（需要认证）
+PATCH {{baseUrl}}/todos/1/toggle
+Authorization: Bearer {{accessToken}}
+
+### 15. 删除 Todo（需要认证）
+DELETE {{baseUrl}}/todos/1
+Authorization: Bearer {{accessToken}}
+
+### ========================================
+### 错误测试
+### ========================================
+
+### 16. 未认证访问（应返回 401）
+GET {{baseUrl}}/todos
+
+### 17. 无效 Token（应返回 401）
+GET {{baseUrl}}/todos
+Authorization: Bearer invalid-token-here
+
+### 18. 重复注册（应返回 409）
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "username": "testuser",
+  "password": "password123"
+}
+
+### 19. 错误的登录凭证（应返回 401）
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "emailOrUsername": "testuser",
+  "password": "wrongpassword"
+}

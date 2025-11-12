@@ -2,6 +2,8 @@
  * Swagger 插件
  * 用于生成 API 文档
  * 访问地址：http://localhost:3000/documentation
+ * 
+ * 更新：添加 JWT Bearer Token 认证支持
  */
 
 import swagger from '@fastify/swagger';
@@ -12,9 +14,9 @@ export async function registerSwagger(fastify) {
   await fastify.register(swagger, {
     openapi: {
       info: {
-        title: 'Todos REST API',
-        description: 'A complete Fastify + Prisma + SQLite Todos REST API',
-        version: '1.0.0',
+        title: 'Todos REST API with JWT Authentication',
+        description: 'A complete Fastify + Prisma + SQLite Todos REST API with JWT authentication',
+        version: '2.0.0',
       },
       servers: [
         {
@@ -23,7 +25,23 @@ export async function registerSwagger(fastify) {
         },
       ],
       tags: [
-        { name: 'todos', description: 'Todo related endpoints' },
+        { name: 'auth', description: 'Authentication endpoints' },
+        { name: 'todos', description: 'Todo related endpoints (requires authentication)' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'Enter your JWT token in the format: Bearer <token>',
+          },
+        },
+      },
+      security: [
+        {
+          bearerAuth: [],
+        },
       ],
     },
   });
@@ -34,6 +52,7 @@ export async function registerSwagger(fastify) {
     uiConfig: {
       docExpansion: 'list',
       deepLinking: true,
+      persistAuthorization: true, // 保持认证状态
     },
     staticCSP: true,
   });

@@ -10,6 +10,17 @@ import fp from 'fastify-plugin';
 async function prismaPlugin(fastify, options) {
   const prisma = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
+    // 增加数据库操作超时时间
+    __internal: {
+      engine: {
+        connectionTimeout: 30000, // 30秒
+      },
+    },
   });
 
   // 测试数据库连接
