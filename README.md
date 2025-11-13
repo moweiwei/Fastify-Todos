@@ -1,4 +1,4 @@
-# Nestjs: Fastify + Prisma 后端开发入门指南
+# Fastify + Prisma + JWT + RBAC 后端开发入门指南
 
 > 专为前端转后端的初学者准备的 Nest 详细教程
 
@@ -46,7 +46,11 @@ npm run dev
 
 ### 6. 测试 API
 
-使用提供的 `test-auth.http` 文件测试认证功能，或使用 Swagger 文档在线测试。
+可使用 Swagger 在线测试，或使用 VSCode REST Client 执行：
+
+- `requests/user.http`：认证与用户 CRUD
+- `requests/rbac.http`：角色/权限/守卫联调（创建并绑定权限后再访问受守卫接口）
+- `requests/menu.http`：菜单树创建、角色菜单绑定与用户可见菜单树
 
 ---
 
@@ -63,6 +67,14 @@ npm run dev
 - 🌍 **CORS 支持** - 跨域资源共享
 - 📝 **完整日志** - 使用 Pino 日志系统
 - 🔒 **错误处理** - 全局错误处理机制
+
+### 新增能力
+
+- 🔐 JWT 双 Token 与刷新令牌轮换（一次性 Refresh Token）
+- 🛡️ RBAC 权限守卫：`resource:action` 精细接口控制
+- 🧭 动态菜单树：`/api/auth/menus` 按角色返回前端可用路由树
+- 📄 REST Client 联调文档：`requests/user.http`、`requests/rbac.http`、`requests/menu.http`
+- 🪖 安全插件：`helmet` 安全头、`rate-limit` 防暴力、CORS 白名单可配置
 
 ## 📚 目录
 
@@ -229,6 +241,41 @@ model Todo {
 | DELETE | `/api/todos/:id`        | 删除 Todo                | ✅           |
 | PATCH  | `/api/todos/:id/toggle` | 切换完成状态             | ✅           |
 
+#### 用户、RBAC 与菜单相关接口（均需认证，带权限守卫）
+
+| 方法  | 端点                          | 说明                         | 权限守卫           |
+| ----- | ----------------------------- | ---------------------------- | ------------------ |
+| GET   | `/api/users`                  | 用户列表（分页/筛选）        | `users:list`       |
+| GET   | `/api/users/:id`              | 用户详情                     | `users:read`       |
+| POST  | `/api/users`                  | 创建用户                     | `users:create`     |
+| PUT   | `/api/users/:id`              | 更新用户                     | `users:update`     |
+| PATCH | `/api/users/:id`              | 部分更新用户                 | `users:update`     |
+| DELETE| `/api/users/:id`              | 删除用户                     | `users:delete`     |
+| GET   | `/api/auth/permissions`       | 当前用户权限点数组           | -                  |
+| GET   | `/api/auth/menus`             | 当前用户可见菜单树           | -                  |
+| GET   | `/api/roles`                  | 角色列表                     | `roles:list`       |
+| POST  | `/api/roles`                  | 创建角色                     | `roles:create`     |
+| GET   | `/api/roles/:id`              | 角色详情                     | `roles:read`       |
+| PUT   | `/api/roles/:id`              | 更新角色                     | `roles:update`     |
+| DELETE| `/api/roles/:id`              | 删除角色                     | `roles:delete`     |
+| GET   | `/api/roles/:id/permissions`  | 读取角色绑定的权限点         | `roles:read`       |
+| POST  | `/api/roles/:id/permissions`  | 设置角色权限点（覆盖模式）   | `roles:update`     |
+| GET   | `/api/users/:id/roles`        | 读取用户绑定的角色           | `roles:read`       |
+| POST  | `/api/users/:id/roles`        | 设置用户角色（覆盖模式）     | `roles:update`     |
+| GET   | `/api/permissions`            | 权限点列表                   | `permissions:list` |
+| POST  | `/api/permissions`            | 创建权限点                   | `permissions:create`|
+| GET   | `/api/permissions/:id`        | 权限点详情                   | `permissions:read` |
+| PUT   | `/api/permissions/:id`        | 更新权限点                   | `permissions:update`|
+| DELETE| `/api/permissions/:id`        | 删除权限点                   | `permissions:delete`|
+| GET   | `/api/menus`                  | 菜单列表                     | `menus:list`       |
+| GET   | `/api/menus/tree`             | 全量菜单树                   | `menus:list`       |
+| GET   | `/api/menus/:id`              | 菜单详情                     | `menus:read`       |
+| POST  | `/api/menus`                  | 创建菜单节点                 | `menus:create`     |
+| PUT   | `/api/menus/:id`              | 更新菜单节点                 | `menus:update`     |
+| DELETE| `/api/menus/:id`              | 删除菜单节点                 | `menus:delete`     |
+| GET   | `/api/roles/:id/menus`        | 读取角色绑定的菜单           | `menus:read`       |
+| POST  | `/api/roles/:id/menus`        | 设置角色菜单（覆盖模式）     | `menus:update`     |
+
 ### 使用示例
 
 #### 1. 用户注册
@@ -371,6 +418,8 @@ NODE_ENV=development
 # JWT 配置（生产环境请使用强密钥）
 JWT_ACCESS_SECRET=your-super-secret-access-token-key-change-this-in-production
 JWT_REFRESH_SECRET=your-super-secret-refresh-token-key-change-this-in-production
+# CORS 白名单（多个域名用逗号分隔，* 表示全部）
+CORS_ORIGIN=http://localhost:5173,https://admin.example.com
 ```
 
 **⚠️ 安全提示：**
@@ -2258,3 +2307,74 @@ if (!isValid) {
 ---
 
 **祝你学习愉快！有问题随时查阅这份文档。** 🎉
+
+---
+
+## 新增能力与接口速览（当前版本）
+
+- JWT 双 Token 与刷新令牌轮换
+- RBAC 权限守卫（`resource:action`）与权限缓存失效
+- 动态菜单树输出（适配前端异步路由）
+- REST Client 联调文档 `requests/*.http`
+
+### 关键接口
+
+- 认证：`/api/auth/register`、`/api/auth/login`、`/api/auth/refresh`、`/api/auth/permissions`、`/api/auth/menus`
+- 用户：`/api/users`（`list/read/create/update/delete`）
+- 角色：`/api/roles` 及 `/:id/permissions`、`/users/:id/roles`
+- 权限点：`/api/permissions`
+- 菜单：`/api/menus`、`/api/menus/tree`、`/api/roles/:id/menus`
+
+权限守卫示例（路由层）：
+- 用户列表 `users:list`（`src/routes/user.routes.js:56-58`）
+- Todos 列表 `todos:list`（`src/routes/todo.routes.js:68-70`）
+- 角色列表 `roles:list`（`src/routes/role.routes.js:16`）
+- 权限点列表 `permissions:list`（`src/routes/permission.routes.js:15`）
+- 菜单列表 `menus:list`（`src/routes/menu.routes.js:21`）
+
+动态菜单树：
+- 构建：`src/services/menu.service.js:23-46,47-60`
+- 输出：`GET /api/auth/menus`（`src/routes/auth.routes.js:406-427`，实现于 `src/controllers/auth.controller.js:312-331`）
+
+安全与平台：
+- 速率限制：`src/app.js:41-44,+rate-limit`；登录/注册路由级限流 `src/routes/auth.routes.js:100-146,36-97`
+- 安全头：`src/app.js:+helmet`
+- CORS 白名单：`.env CORS_ORIGIN`；处理逻辑 `src/app.js:41-44`
+
+### 联调文档
+
+- `requests/user.http`：认证与用户 CRUD
+- `requests/rbac.http`：创建权限、角色绑定、用户角色绑定、守卫校验
+- `requests/menu.http`：菜单树创建与绑定、用户可见菜单树
+
+### 结构补充
+
+```
+src/
+├── routes/              # 路由层
+│   ├── auth.routes.js
+│   ├── user.routes.js
+│   ├── todo.routes.js
+│   ├── role.routes.js
+│   ├── permission.routes.js
+│   └── menu.routes.js
+├── controllers/
+│   ├── auth.controller.js
+│   ├── user.controller.js
+│   ├── todo.controller.js
+│   ├── role.controller.js
+│   ├── permission.controller.js
+│   └── menu.controller.js
+├── services/
+│   ├── auth.service.js
+│   ├── user.service.js
+│   ├── todo.service.js
+│   ├── role.service.js
+│   ├── permission.service.js
+│   └── menu.service.js
+└── plugins/
+    ├── prisma.js
+    ├── jwt.js
+    ├── permissions.js
+    └── swagger.js
+```

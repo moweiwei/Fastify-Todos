@@ -1,0 +1,131 @@
+@host = http://localhost:3000
+@base = {{host}}/api
+
+### 注册新用户（随机邮箱/用户名，避免重复）
+# @name register
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "user{{$randomInt}}@example.com",
+  "username": "user_{{$randomInt}}",
+  "password": "Passw0rd!",
+  "name": "New User"
+}
+
+### 登录（使用注册返回的邮箱或用户名）
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "{{register.response.body.data.user.email}}",
+  "password": "Passw0rd!"
+}
+
+### 刷新 Access Token
+# @name refresh
+POST {{base}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.data.tokens.refreshToken}}"
+}
+
+### 获取当前用户信息（需要认证）
+# @name me
+GET {{base}}/auth/me
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+
+### 更新当前用户信息（需要认证）
+# @name me_update
+PATCH {{base}}/auth/me
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Updated Name {{$timestamp}}"
+}
+
+### 修改密码（需要认证，会使刷新令牌全部失效）
+# @name change_password
+POST {{base}}/auth/change-password
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "oldPassword": "Passw0rd!",
+  "newPassword": "Passw0rd!2"
+}
+
+### 未认证访问用户列表（应返回 401）
+# @name users_unauthorized
+GET {{base}}/users
+
+### 用户列表（分页/筛选，需认证）
+# @name users_list
+GET {{base}}/users?page=1&limit=10&email={{register.response.body.data.user.email}}&username=
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+
+### 创建用户（需认证）
+# @name users_create
+POST {{base}}/users
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "member{{$randomInt}}@example.com",
+  "username": "member_{{$randomInt}}",
+  "password": "Passw0rd!",
+  "name": "Member {{$timestamp}}"
+}
+
+### 创建重复用户以触发 409（需认证）
+# @name users_create_conflict
+POST {{base}}/users
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "{{users_create.response.body.data.email}}",
+  "username": "{{users_create.response.body.data.username}}",
+  "password": "Passw0rd!",
+  "name": "Dup"
+}
+
+### 根据 ID 获取用户（需认证）
+# @name users_get_one
+GET {{base}}/users/{{users_create.response.body.data.id}}
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+
+### 更新用户（PUT，全量或 PATCH，需认证）
+# @name users_update
+PUT {{base}}/users/{{users_create.response.body.data.id}}
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Member Updated {{$timestamp}}",
+  "email": "member{{$randomInt}}@example.com"
+}
+
+### 部分更新用户（PATCH，需认证）
+# @name users_patch
+PATCH {{base}}/users/{{users_create.response.body.data.id}}
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "username": "member_{{$randomInt}}"
+}
+
+### 删除用户（需认证）
+# @name users_delete
+DELETE {{base}}/users/{{users_create.response.body.data.id}}
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+
+### 获取不存在的用户（应返回 404，需认证）
+# @name users_get_not_found
+GET {{base}}/users/999999
+Authorization: Bearer {{login.response.body.data.tokens.accessToken}}
+

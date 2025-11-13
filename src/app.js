@@ -7,12 +7,18 @@
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import dotenv from 'dotenv';
 import prismaPlugin from './plugins/prisma.js';
 import jwtPlugin from './plugins/jwt.js';
 import { registerSwagger } from './plugins/swagger.js';
 import authRoutes from './routes/auth.routes.js';
 import todoRoutes from './routes/todo.routes.js';
+import userRoutes from './routes/user.routes.js';
+import roleRoutes from './routes/role.routes.js';
+import permissionRoutes from './routes/permission.routes.js';
+import menuRoutes from './routes/menu.routes.js';
 
 // 加载环境变量
 dotenv.config();
@@ -39,7 +45,20 @@ export async function buildApp(opts = {}) {
 
   // 注册 CORS
   await fastify.register(cors, {
-    origin: true, // 允许所有来源，生产环境应该配置具体域名
+    origin: (origin, cb) => {
+      const env = process.env.CORS_ORIGIN || '*'
+      if (env === '*' || !origin) return cb(null, true)
+      const list = env.split(',').map((x) => x.trim())
+      if (list.includes(origin)) return cb(null, true)
+      cb(new Error('Not allowed by CORS'), false)
+    },
+  });
+
+  await fastify.register(helmet);
+  await fastify.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+    allowList: [],
   });
 
   // 注册 Prisma 插件
@@ -47,6 +66,7 @@ export async function buildApp(opts = {}) {
 
   // 注册 JWT 认证插件
   await fastify.register(jwtPlugin);
+  await fastify.register((await import('./plugins/permissions.js')).default);
 
   // 注册 Swagger 文档（必须在 JWT 插件之后）
   await registerSwagger(fastify);
@@ -72,6 +92,10 @@ export async function buildApp(opts = {}) {
   // 注册 API 路由
   await fastify.register(authRoutes, { prefix: '/api' });
   await fastify.register(todoRoutes, { prefix: '/api' });
+  await fastify.register(userRoutes, { prefix: '/api' });
+  await fastify.register(roleRoutes, { prefix: '/api' });
+  await fastify.register(permissionRoutes, { prefix: '/api' });
+  await fastify.register(menuRoutes, { prefix: '/api' });
 
   // 全局错误处理
   fastify.setErrorHandler((error, request, reply) => {

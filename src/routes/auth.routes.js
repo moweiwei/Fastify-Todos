@@ -92,6 +92,9 @@ export default async function authRoutes(fastify, options) {
           },
         },
       },
+      config: {
+        rateLimit: { max: 5, timeWindow: '1 minute' }
+      },
     },
     controller.register.bind(controller)
   );
@@ -140,6 +143,9 @@ export default async function authRoutes(fastify, options) {
             },
           },
         },
+      },
+      config: {
+        rateLimit: { max: 10, timeWindow: '1 minute' }
       },
     },
     controller.login.bind(controller)
@@ -380,5 +386,49 @@ export default async function authRoutes(fastify, options) {
       },
     },
     controller.changePassword.bind(controller)
+  );
+
+  fastify.get(
+    '/auth/permissions',
+    {
+      preHandler: fastify.authenticate,
+      schema: {
+        description: 'Get current user permissions',
+        tags: ['auth'],
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+      },
+    },
+    controller.getPermissions.bind(controller)
+  );
+
+  fastify.get(
+    '/auth/menus',
+    {
+      preHandler: fastify.authenticate,
+      schema: {
+        description: 'Get current user visible menus tree',
+        tags: ['auth'],
+        security: [{ bearerAuth: [] }],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'array' },
+            },
+          },
+        },
+      },
+    },
+    controller.getMenus.bind(controller)
   );
 }

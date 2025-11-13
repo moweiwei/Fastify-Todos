@@ -5,11 +5,13 @@
  */
 
 import { AuthService } from '../services/auth.service.js';
+import { PermissionService } from '../services/permission.service.js';
 
 export class AuthController {
   constructor(fastify) {
     this.authService = new AuthService(fastify.prisma);
     this.fastify = fastify;
+    this.permissionService = new PermissionService(fastify.prisma);
   }
 
   /**
@@ -145,18 +147,15 @@ export class AuthController {
       // 2. 检查 Token 是否在数据库中且未过期
       const tokenRecord = await this.authService.validateRefreshToken(refreshToken);
       if (!tokenRecord) {
-        return reply.code(401).send({
-          success: false,
-          error: 'Invalid or expired refresh token',
-        });
+        await this.authService.revokeAllRefreshTokens(decoded.id);
+        return reply.code(401).send({ success: false, error: 'Invalid or expired refresh token' });
       }
 
-      // 3. 生成新的 Access Token
-      const newAccessToken = await this.fastify.jwtSign({
-        id: tokenRecord.user.id,
-        email: tokenRecord.user.email,
-        username: tokenRecord.user.username,
-      });
+      // 3. 生成新的 Access Token 与新的 Refresh Token，并撤销旧的
+      const newAccessToken = await this.fastify.jwtSign({ id: tokenRecord.user.id, email: tokenRecord.user.email, username: tokenRecord.user.username });
+      const newRefreshToken = await this.fastify.jwtRefreshSign({ id: tokenRecord.user.id });
+      await this.authService.markRefreshTokenUsed(refreshToken);
+      await this.authService.createRefreshToken(tokenRecord.user.id, newRefreshToken);
 
       // 4. 返回新的 Access Token
       return reply.code(200).send({
@@ -166,6 +165,7 @@ export class AuthController {
           accessToken: newAccessToken,
           tokenType: 'Bearer',
           expiresIn: 900,
+          refreshToken: newRefreshToken,
         },
       });
     } catch (error) {
@@ -320,6 +320,43 @@ export class AuthController {
         success: false,
         error: 'Failed to change password',
       });
+    }
+  }
+
+  async getPermissions(request, reply) {
+    try {
+      const userId = request.user.id;
+      const perms = await this.permissionService.getForUser(userId);
+      return reply.code(200).send({ success: true, data: perms });
+    } catch (error) {
+      request.log.error(error);
+      return reply.code(500).send({ success: false, error: 'Failed to get permissions' });
+    }
+  }
+
+  async getMenus(request, reply) {
+    try {
+      const userId = request.user.id
+      const roles = await this.fastify.prisma.userRole.findMany({ where: { userId }, include: { role: true } })
+      const roleIds = roles.map((r) => r.roleId)
+      const roleMenus = await this.fastify.prisma.roleMenu.findMany({ where: { roleId: { in: roleIds } }, include: { menu: true, role: true } })
+      const menus = roleMenus.map((rm) => rm.menu)
+      const roleCodesByMenuId = new Map()
+      for (const rm of roleMenus) {
+        const arr = roleCodesByMenuId.get(rm.menuId) || []
+        arr.push(rm.role.code)
+        roleCodesByMenuId.set(rm.menuId, Array.from(new Set(arr)))
+      }
+      const uniqMap = new Map()
+      menus.forEach((m) => { uniqMap.set(m.id, m) })
+      const unique = Array.from(uniqMap.values())
+      const service = (await import('../services/menu.service.js')).MenuService
+      const ms = new service(this.fastify.prisma)
+      const tree = ms.buildRouteTree(unique, roleCodesByMenuId)
+      return reply.code(200).send({ success: true, data: tree })
+    } catch (error) {
+      request.log.error(error)
+      return reply.code(500).send({ success: false, error: 'Failed to get menus' })
     }
   }
 }

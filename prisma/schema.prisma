@@ -23,6 +23,7 @@ model User {
   // 关联关系
   todos     Todo[]
   refreshTokens RefreshToken[]
+  roles     UserRole[]
 
   @@map("users")
 }
@@ -33,6 +34,8 @@ model RefreshToken {
   token     String   @unique
   userId    Int
   expiresAt DateTime
+  revoked   Boolean  @default(false)
+  usedAt    DateTime?
   createdAt DateTime @default(now())
   
   // 关联关系
@@ -55,4 +58,70 @@ model Todo {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("todos")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  status    Boolean  @default(true)
+  users     UserRole[]
+  permissions RolePermission[]
+  menus     RoleMenu[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model Menu {
+  id        Int      @id @default(autoincrement())
+  parentId  Int?
+  name      String
+  path      String?
+  component String?
+  type      Int
+  icon      String?
+  order     Int      @default(0)
+  hidden    Boolean  @default(false)
+  roles     RoleMenu[]
+
+  @@map("menus")
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RoleMenu {
+  roleId Int
+  menuId Int
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu   Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, menuId])
+  @@map("role_menus")
 }

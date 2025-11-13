@@ -143,10 +143,9 @@ export class AuthService {
       },
     });
 
-    // 检查 token 是否存在且未过期
-    if (!refreshToken || refreshToken.expiresAt < new Date()) {
-      return null;
-    }
+    if (!refreshToken) return null;
+    if (refreshToken.revoked) return null;
+    if (refreshToken.expiresAt < new Date()) return null;
 
     return refreshToken;
   }
@@ -157,8 +156,9 @@ export class AuthService {
    * @returns {Promise<void>}
    */
   async revokeRefreshToken(token) {
-    await this.prisma.refreshToken.delete({
+    await this.prisma.refreshToken.update({
       where: { token },
+      data: { revoked: true, usedAt: new Date() },
     });
   }
 
@@ -168,8 +168,9 @@ export class AuthService {
    * @returns {Promise<void>}
    */
   async revokeAllRefreshTokens(userId) {
-    await this.prisma.refreshToken.deleteMany({
+    await this.prisma.refreshToken.updateMany({
       where: { userId },
+      data: { revoked: true, usedAt: new Date() },
     });
   }
 
@@ -183,9 +184,27 @@ export class AuthService {
         expiresAt: {
           lt: new Date(),
         },
+        revoked: true,
       },
     });
     return result.count;
+  }
+
+  async markRefreshTokenUsed(token) {
+    await this.prisma.refreshToken.update({ where: { token }, data: { revoked: true, usedAt: new Date() } })
+  }
+
+  async createRotatedRefreshToken(userId) {
+    return await this.prisma.refreshToken.create({
+      data: {
+        token: await (async () => {
+          return 'rt_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+        })(),
+        userId,
+        expiresAt: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d })(),
+        revoked: false,
+      },
+    })
   }
 
   /**

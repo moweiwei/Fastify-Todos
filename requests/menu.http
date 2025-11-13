@@ -1,0 +1,142 @@
+@host = http://localhost:3000
+@base = {{host}}/api
+
+# @name m_register
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "menu{{$randomInt}}@example.com",
+  "username": "menu_{{$randomInt}}",
+  "password": "Passw0rd!",
+  "name": "Menu Tester"
+}
+
+# @name m_login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "{{m_register.response.body.data.user.email}}",
+  "password": "Passw0rd!"
+}
+
+# @name create_root_dashboard
+POST {{base}}/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Dashboard",
+  "path": "/dashboard",
+  "component": "/index/index",
+  "type": 0,
+  "icon": "ri:pie-chart-line",
+  "order": 1,
+  "hidden": false
+}
+
+# @name create_console
+POST {{base}}/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "parentId": {{create_root_dashboard.response.body.data.id}},
+  "name": "Console",
+  "path": "console",
+  "component": "/dashboard/console",
+  "type": 1,
+  "order": 1,
+  "hidden": false
+}
+
+# @name create_analysis
+POST {{base}}/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "parentId": {{create_root_dashboard.response.body.data.id}},
+  "name": "Analysis",
+  "path": "analysis",
+  "component": "/dashboard/analysis",
+  "type": 1,
+  "order": 2,
+  "hidden": false
+}
+
+# @name create_ecommerce
+POST {{base}}/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "parentId": {{create_root_dashboard.response.body.data.id}},
+  "name": "Ecommerce",
+  "path": "ecommerce",
+  "component": "/dashboard/ecommerce",
+  "type": 1,
+  "order": 3,
+  "hidden": false
+}
+
+# @name list_tree_all
+GET {{base}}/menus/tree
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+
+# @name role_create_admin
+POST {{base}}/roles
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "R_ADMIN",
+  "code": "R_ADMIN",
+  "status": true
+}
+
+# @name bind_role_menus
+POST {{base}}/roles/{{role_create_admin.response.body.data.id}}/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "menuIds": [
+    {{create_root_dashboard.response.body.data.id}},
+    {{create_console.response.body.data.id}},
+    {{create_analysis.response.body.data.id}},
+    {{create_ecommerce.response.body.data.id}}
+  ]
+}
+
+# @name bind_user_role
+POST {{base}}/users/{{m_login.response.body.data.user.id}}/roles
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "roleIds": [ {{role_create_admin.response.body.data.id}} ]
+}
+
+# @name my_menus_tree
+GET {{base}}/auth/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+
+# @name update_analysis_hidden
+PUT {{base}}/menus/{{create_analysis.response.body.data.id}}
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "hidden": true
+}
+
+# @name delete_ecommerce
+DELETE {{base}}/menus/{{create_ecommerce.response.body.data.id}}
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+
+# @name my_menus_tree_after_update
+GET {{base}}/auth/menus
+Authorization: Bearer {{m_login.response.body.data.tokens.accessToken}}
+

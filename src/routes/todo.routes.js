@@ -67,7 +67,7 @@ export default async function todoRoutes(fastify, options) {
 
   // GET /api/todos - 获取所有 Todos（需要认证）
   fastify.get('/todos', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:list')],
     schema: {
       description: 'Get all todos for authenticated user',
       tags: ['todos'],
@@ -95,7 +95,7 @@ export default async function todoRoutes(fastify, options) {
 
   // GET /api/todos/:id - 获取单个 Todo（需要认证）
   fastify.get('/todos/:id', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:read')],
     schema: {
       description: 'Get a todo by ID for authenticated user',
       tags: ['todos'],
@@ -113,7 +113,7 @@ export default async function todoRoutes(fastify, options) {
 
   // POST /api/todos - 创建新 Todo（需要认证）
   fastify.post('/todos', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:create')],
     schema: {
       description: 'Create a new todo for authenticated user',
       tags: ['todos'],
@@ -141,7 +141,7 @@ export default async function todoRoutes(fastify, options) {
 
   // PUT /api/todos/:id - 更新 Todo（需要认证）
   fastify.put('/todos/:id', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:update')],
     schema: {
       description: 'Update a todo for authenticated user',
       tags: ['todos'],
@@ -168,7 +168,7 @@ export default async function todoRoutes(fastify, options) {
 
   // PATCH /api/todos/:id - 部分更新 Todo（需要认证）
   fastify.patch('/todos/:id', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:update')],
     schema: {
       description: 'Partially update a todo for authenticated user',
       tags: ['todos'],
@@ -195,7 +195,7 @@ export default async function todoRoutes(fastify, options) {
 
   // DELETE /api/todos/:id - 删除 Todo（需要认证）
   fastify.delete('/todos/:id', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:delete')],
     schema: {
       description: 'Delete a todo for authenticated user',
       tags: ['todos'],
@@ -228,7 +228,7 @@ export default async function todoRoutes(fastify, options) {
 
   // PATCH /api/todos/:id/toggle - 切换完成状态（需要认证）
   fastify.patch('/todos/:id/toggle', {
-    preHandler: fastify.authenticate,
+    preHandler: [fastify.authenticate, fastify.authorize('todos:update')],
     schema: {
       description: 'Toggle todo completion status for authenticated user',
       tags: ['todos'],

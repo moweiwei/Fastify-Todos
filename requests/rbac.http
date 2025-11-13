@@ -1,0 +1,330 @@
+@host = http://localhost:3000
+@base = {{host}}/api
+
+### 注册并登录一个用户
+# @name r_register
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "rbac{{$randomInt}}@example.com",
+  "username": "rbac_{{$randomInt}}",
+  "password": "Passw0rd!",
+  "name": "RBAC User"
+}
+
+# @name r_login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "{{r_register.response.body.data.user.email}}",
+  "password": "Passw0rd!"
+}
+
+### 创建权限点（users.* / todos.* / roles.* / permissions.* / menus.*）
+# @name p_create_list
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "users:list",
+  "description": "List users"
+}
+
+# @name p_create_read
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "users:read",
+  "description": "Read user"
+}
+
+# @name p_create_create
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "users:create",
+  "description": "Create user"
+}
+
+# @name p_create_update
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "users:update",
+  "description": "Update user"
+}
+
+# @name p_create_delete
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "users:delete",
+  "description": "Delete user"
+}
+
+# @name p_todos_list
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "todos:list",
+  "description": "List todos"
+}
+
+# @name p_todos_crud
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "todos:create",
+  "description": "Create todo"
+}
+
+# @name p_todos_update
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "todos:update",
+  "description": "Update todo"
+}
+
+# @name p_todos_delete
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "todos:delete",
+  "description": "Delete todo"
+}
+
+# @name p_roles_all
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "roles:list",
+  "description": "List roles"
+}
+
+# @name p_roles_read
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "roles:read",
+  "description": "Read role"
+}
+
+# @name p_roles_create
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "roles:create",
+  "description": "Create role"
+}
+
+# @name p_roles_update
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "roles:update",
+  "description": "Update role"
+}
+
+# @name p_roles_delete
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "roles:delete",
+  "description": "Delete role"
+}
+
+# @name p_permissions_all
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "permissions:list",
+  "description": "List permissions"
+}
+
+# @name p_permissions_read
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "permissions:read",
+  "description": "Read permission"
+}
+
+# @name p_permissions_create
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "permissions:create",
+  "description": "Create permission"
+}
+
+# @name p_permissions_update
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "permissions:update",
+  "description": "Update permission"
+}
+
+# @name p_permissions_delete
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "permissions:delete",
+  "description": "Delete permission"
+}
+
+# @name p_menus_all
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "menus:list",
+  "description": "List menus"
+}
+
+# @name p_menus_read
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "menus:read",
+  "description": "Read menu"
+}
+
+# @name p_menus_create
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "menus:create",
+  "description": "Create menu"
+}
+
+# @name p_menus_update
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "menus:update",
+  "description": "Update menu"
+}
+
+# @name p_menus_delete
+POST {{base}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "key": "menus:delete",
+  "description": "Delete menu"
+}
+
+### 创建角色并绑定权限
+# @name role_create
+POST {{base}}/roles
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Admin",
+  "code": "ADMIN",
+  "status": true
+}
+
+# @name role_bind_perms
+POST {{base}}/roles/{{role_create.response.body.data.id}}/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "keys": [
+    "users:list",
+    "users:read",
+    "users:create",
+    "users:update",
+    "users:delete",
+    "todos:list",
+    "todos:create",
+    "todos:update",
+    "todos:delete",
+    "roles:list",
+    "roles:read",
+    "roles:create",
+    "roles:update",
+    "roles:delete",
+    "permissions:list",
+    "permissions:read",
+    "permissions:create",
+    "permissions:update",
+    "permissions:delete",
+    "menus:list",
+    "menus:read",
+    "menus:create",
+    "menus:update",
+    "menus:delete"
+  ]
+}
+
+### 为当前用户绑定角色
+# @name user_bind_roles
+POST {{base}}/users/{{r_login.response.body.data.user.id}}/roles
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "roleIds": [ {{role_create.response.body.data.id}} ]
+}
+
+### 查看当前用户权限点
+# @name my_permissions
+GET {{base}}/auth/permissions
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
+
+### 尝试访问受守卫保护的用户列表
+# @name guarded_users_list
+GET {{base}}/users?page=1&limit=5
+Authorization: Bearer {{r_login.response.body.data.tokens.accessToken}}
